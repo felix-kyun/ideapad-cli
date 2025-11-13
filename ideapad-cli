@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+
+# Copyright (c) 2024 Felix Kyun
+# SPDX-License-Identifier: Unlicense
+# @felix-kyun
+# Description: cli to query/control ideapad features
+# Depends on ideapad-laptop & acpi_call kernel modules
+
+# ACPI calls
+MODE_QUERY='\_SB.PCI0.LPC0.EC0.GZ44'
+MODE_PERFORMANCE='\_SB_.GZFD.WMAA 0 0x2C 3'
+MODE_BATTERY='\_SB_.GZFD.WMAA 0 0x2C 1'
+MODE_AUTOMATIC='\_SB_.GZFD.WMAA 0 0x2C 2'
+
+BATTERY_CONSERVATION_QUERY='\_SB.PCI0.LPC0.EC0.BTSM'
+BATTERY_CONSERVATION_ENABLE='\_SB.PCI0.LPC0.EC0.VPC0.SBMC 0x03'
+BATTERY_CONSERVATION_DISABLE='\_SB.PCI0.LPC0.EC0.VPC0.SBMC 0x05'
+
+RAPID_CHARGE_QUERY='\_SB.PCI0.LPC0.EC0.FCGM'
+RAPID_CHARGE_ENABLE='\_SB.PCI0.LPC0.EC0.VPC0.SBMC 0x07'
+RAPID_CHARGE_DISABLE='\_SB.PCI0.LPC0.EC0.VPC0.SBMC 0x08'
+
+set -eo pipefail
+
+help() {
+    echo "ideapad_cli - CLI to query/control ideapad features"
+    echo ""
+    echo "Usage: ideapad_cli feature [mode]"
+    echo ""
+    echo "Features:"
+    echo "  mode                 Query or set performance mode (automatic, performance, battery)"
+    echo "  battery-conservation Query or set battery conservation mode (enable, disable)"
+    echo "  rapid-charge         Query or set rapid charge mode (enable, disable)"
+}
+
+if (( $# < 1 )); then
+    help
+    exit 1
+fi
+
+# check if running as root
+uid=$(id -u)
+if (( uid != 0 )); then
+    echo "This script must be run as root."
+    exec sudo "$0" "$@"
+fi
+
+FEATURE=$1
+MODE=$2
+
+acpic() {
+    if ! lsmod | grep lsmod; then 
+        sudo modprobe acpi_call
+    fi
+
+    if ! echo "$1" | sudo tee /proc/acpi/call > /dev/null; then
+        echo "Failed to execute acpi call"
+        return 1
+    fi
+
+    sudo cat /proc/acpi/call 
+    printf "\n"
+}
+
+enable() {
+    echo "$1" > /proc/acpi/call && echo "ok" || echo "failed"
+}
+
+case $FEATURE in
+    fan)
+        if [ -z "$MODE" ]; then
+            mode=$(acpic "$MODE_QUERY" | sed 's/.*0x\([0-9]\).*/\1/;')
+            case $mode in
+                0) echo "Automatic Mode" ;;
+                1) echo "Performance Mode" ;;
+                2) echo "Battery Saver Mode" ;;
+                *) echo "Unknown Mode: $mode" ;;
+            esac
+        else
+            case $MODE in
+                performance) enable "$MODE_PERFORMANCE";;
+                automatic) enable "$MODE_AUTOMATIC";;
+                battery) enable "$MODE_BATTERY";;
+                *) echo "Unknown mode: $MODE" ;;
+            esac
+        fi
+        ;;
+    battery-conservation)
+        if [ -z "$MODE" ]; then
+            status=$(acpic "$BATTERY_CONSERVATION_QUERY" | sed 's/.*0x\([0-9]\).*/\1/;')
+            case $status in
+                0) echo "Battery Conservation: Disabled" ;;
+                1) echo "Battery Conservation: Enabled" ;;
+                *) echo "Unknown Status: $status" ;;
+            esac
+        else
+            case $MODE in
+                enable) enable "$BATTERY_CONSERVATION_ENABLE";;
+                disable) enable "$BATTERY_CONSERVATION_DISABLE";;
+                *) echo "Unknown mode: $MODE" ;;
+            esac
+        fi
+        ;;
+    rapid-charge)
+        if [ -z "$MODE" ]; then
+            status=$(acpic "$RAPID_CHARGE_QUERY" | sed 's/.*0x\([0-9]\).*/\1/;')
+            case $status in
+                0) echo "Rapid Charge: Disabled" ;;
+                1) echo "Rapid Charge: Enabled" ;;
+                *) echo "Unknown Status: $status" ;;
+            esac
+        else
+            case $MODE in
+                enable) enable "$RAPID_CHARGE_ENABLE";;
+                disable) enable "$RAPID_CHARGE_DISABLE";;
+                *) echo "Unknown mode: $MODE" ;;
+            esac
+        fi
+        ;;
+esac
