@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
-# Copyright (c) 2024 Felix Kyun
+# Copyright (c) 2024 Praise Jacob
 # SPDX-License-Identifier: Unlicense
-# @felix-kyun
+# Author: Praise Jacob <iampraisejacob@gmail.com>
+#
 # Description: cli to query/control ideapad features
 # Depends on ideapad-laptop & acpi_call kernel modules
 
@@ -114,11 +115,10 @@ case $FEATURE in
             esac
         else
             case $MODE in
-                cmd) 
+                enable) 
                     cmd "$BATTERY_CONSERVATION_DISABLE"
                     cmd "$RAPID_CHARGE_ENABLE"
                     ;;
-                disable) cmd "$RAPID_CHARGE_DISABLE";;
                 *) echo "Unknown mode: $MODE" ;;
             esac
         fi

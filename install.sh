@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+set -eou pipefail
 
 # check if running as root
 uid=$(id -u)
@@ -9,19 +9,24 @@ if (( uid != 0 )); then
     exec sudo "$0" "$@"
 fi
 
-if [ -n "$BASH_VERSION" ]; then
+CURRENT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# install binary
+echo "Installing ideaconf binary..."
+install -Dm 755 "$CURRENT_DIR/ideaconf" /usr/local/bin/ideaconf
+
+# install completions
+if command -v zsh >/dev/null 2>&1; then
+    install -Dm644 "$CURRENT_DIR/completions/zsh" /usr/share/zsh/site-functions/_ideaconf
+    echo "ok"
+fi
+if command -v bash >/dev/null 2>&1; then
     # ensure bash_completions is installed to support completion installation
     if [ ! -f /usr/share/bash-completion/bash_completion ]; then
         echo "bash-completion package is not installed. Please install it first."
         exit 1
     fi
-    echo "Installing ideapad-cli completion for bash..."
-    install -Dm644 _ideapad-cli /usr/share/bash-completion/completions/ideapad-cli
+    echo "Installing ideaconf completion for bash..."
+    install -Dm644 "$CURRENT_DIR/completions/bash" /usr/share/bash-completion/completions/ideaconf
     echo "ok"
-elif [ -n "$ZSH_VERSION" ]; then
-    echo "Installing ideapad-cli completion for zsh..."
-    install -Dm644 _ideapad-cli /usr/share/zsh/site-functions/_ideapad-cli
-    echo "ok"
-else
-    echo "Shell not detected or not supported for completion installation."
 fi
