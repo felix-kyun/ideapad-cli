@@ -1,0 +1,35 @@
+#compdef ideaconf
+_ideaconf() {
+    local curcontext="$curcontext" state line
+    typeset -A opt_args
+
+    _arguments -C \
+        '1:feature:->feature' \
+        '*::options:->options'
+
+    case $state in
+        feature)
+            _values "Feature" \
+                "mode[Query or set performance mode]" \
+                "battery-conservation[Query or set battery conservation mode]" \
+                "rapid-charge[Query or set rapid charge mode]"
+            ;;
+        options)
+            case $words[1] in
+                mode)
+                    _values "Mode" \
+                        "automatic[Automatic performance mode]" \
+                        "performance[High performance mode]" \
+                        "battery[Battery saving mode]"
+                    ;;
+                battery-conservation|rapid-charge)
+                    _values "Option" \
+                        "enable[Enable]" \
+                        "disable[Disable]"
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+_ideaconf "$@"
